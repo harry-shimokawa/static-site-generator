@@ -19,7 +19,10 @@ cd ..
 PYTHONPATH=src python3 test_markdown_to_blocks.py
 
 echo "Running block_to_block_type tests..."
-python3 test_block_to_block_type.py
+PYTHONPATH=src python3 test_block_to_block_type.py
+
+echo "Running markdown_to_html_node tests..."
+PYTHONPATH=src python3 test_markdown_to_html_node.py
 cd src
 
 echo "All tests completed!"

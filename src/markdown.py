@@ -177,7 +177,8 @@ def text_to_textnodes(text):
     
     # Apply all delimiter splitting first
     nodes = split_nodes_delimiter(nodes, "**", TextType.BOLD)
-    nodes = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
+    nodes = split_nodes_delimiter(nodes, "*", TextType.ITALIC)
+    nodes = split_nodes_delimiter(nodes, "_", TextType.ITALIC) 
     nodes = split_nodes_delimiter(nodes, "`", TextType.CODE)
     
     # Then split images and links
@@ -245,3 +246,173 @@ def block_to_block_type(block):
     
     # Default to paragraph if no other patterns match
     return BlockType.PARAGRAPH
+
+
+def text_to_children(text):
+    """
+    Convert a text string with inline markdown to a list of HTMLNodes.
+    
+    Uses existing text_to_textnodes and text_node_to_html_node functions.
+    """
+    from textnode import text_node_to_html_node
+    
+    # Convert text to TextNodes using existing function
+    text_nodes = text_to_textnodes(text)
+    
+    # Convert TextNodes to HTMLNodes
+    children = []
+    for text_node in text_nodes:
+        html_node = text_node_to_html_node(text_node)
+        children.append(html_node)
+    
+    return children
+
+
+def markdown_to_html_node(markdown):
+    """
+    Convert a full markdown document into a single parent HTMLNode.
+    
+    Returns a div HTMLNode containing child nodes for each block.
+    """
+    from htmlnode import ParentNode
+    
+    # Split markdown into blocks
+    blocks = markdown_to_blocks(markdown)
+    
+    # Process each block into HTMLNode
+    block_nodes = []
+    for block in blocks:
+        block_type = block_to_block_type(block)
+        
+        if block_type == BlockType.PARAGRAPH:
+            block_node = paragraph_to_html_node(block)
+        elif block_type == BlockType.HEADING:
+            block_node = heading_to_html_node(block)
+        elif block_type == BlockType.CODE:
+            block_node = code_block_to_html_node(block)
+        elif block_type == BlockType.QUOTE:
+            block_node = quote_to_html_node(block)
+        elif block_type == BlockType.UNORDERED_LIST:
+            block_node = unordered_list_to_html_node(block)
+        elif block_type == BlockType.ORDERED_LIST:
+            block_node = ordered_list_to_html_node(block)
+        else:
+            # Fallback to paragraph
+            block_node = paragraph_to_html_node(block)
+        
+        block_nodes.append(block_node)
+    
+    # Create parent div node with all block nodes as children
+    return ParentNode("div", block_nodes)
+
+
+def paragraph_to_html_node(block):
+    """Convert a paragraph block to an HTML p node."""
+    from htmlnode import ParentNode
+    # Join multiple lines in paragraph with spaces
+    paragraph_text = " ".join(line.strip() for line in block.split('\n'))
+    children = text_to_children(paragraph_text)
+    return ParentNode("p", children)
+
+
+def heading_to_html_node(block):
+    """Convert a heading block to an HTML h1-h6 node."""
+    from htmlnode import ParentNode
+    
+    # Count the number of # characters
+    level = 0
+    for char in block:
+        if char == '#':
+            level += 1
+        else:
+            break
+    
+    # Extract the heading text (skip the # characters and space)
+    heading_text = block[level:].strip()
+    
+    # Create the appropriate heading tag
+    tag = f"h{level}"
+    children = text_to_children(heading_text)
+    return ParentNode(tag, children)
+
+
+def code_block_to_html_node(block):
+    """Convert a code block to HTML pre/code nodes."""
+    from htmlnode import ParentNode, LeafNode
+    from textnode import TextNode, text_node_to_html_node
+    
+    # Remove the opening and closing backticks
+    code_content = block[3:-3]  # Remove ``` from start and end
+    
+    # Strip leading newlines only, preserve trailing structure exactly as written
+    # This matches the expected behavior in the tests
+    if code_content.startswith('\n'):
+        code_content = code_content[1:]
+    
+    # For code blocks, we don't parse inline markdown
+    # Create a simple text node and convert it
+    text_node = TextNode(code_content, TextType.TEXT)
+    code_node = text_node_to_html_node(text_node)
+    
+    # Wrap in code tag, then pre tag
+    code_parent = ParentNode("code", [code_node])
+    return ParentNode("pre", [code_parent])
+
+
+def quote_to_html_node(block):
+    """Convert a quote block to HTML blockquote node."""
+    from htmlnode import ParentNode
+    
+    # Remove the > characters from each line
+    lines = block.split('\n')
+    quote_lines = []
+    for line in lines:
+        # Remove the > and any space after it
+        if line.startswith('> '):
+            quote_lines.append(line[2:])
+        elif line.startswith('>'):
+            quote_lines.append(line[1:])
+        else:
+            quote_lines.append(line)
+    
+    # Join lines back together
+    quote_text = '\n'.join(quote_lines)
+    
+    children = text_to_children(quote_text)
+    return ParentNode("blockquote", children)
+
+
+def unordered_list_to_html_node(block):
+    """Convert an unordered list block to HTML ul/li nodes."""
+    from htmlnode import ParentNode
+    
+    lines = block.split('\n')
+    list_items = []
+    
+    for line in lines:
+        # Remove the '- ' from the beginning
+        item_text = line[2:]  # Remove '- '
+        item_children = text_to_children(item_text)
+        list_item = ParentNode("li", item_children)
+        list_items.append(list_item)
+    
+    return ParentNode("ul", list_items)
+
+
+def ordered_list_to_html_node(block):
+    """Convert an ordered list block to HTML ol/li nodes."""
+    from htmlnode import ParentNode
+    
+    lines = block.split('\n')
+    list_items = []
+    
+    for line in lines:
+        # Find the '. ' pattern and remove everything up to it
+        dot_index = line.find('. ')
+        if dot_index != -1:
+            item_text = line[dot_index + 2:]  # Skip past '. '
+            item_children = text_to_children(item_text)
+            list_item = ParentNode("li", item_children)
+            list_items.append(list_item)
+    
+    return ParentNode("ol", list_items)
