@@ -1,7 +1,7 @@
 import unittest
 
 from textnode import TextNode, TextType
-from markdown import split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes
+from markdown import split_nodes_delimiter, extract_markdown_images, extract_markdown_links, split_nodes_image, split_nodes_link, text_to_textnodes, BlockType, block_to_block_type
 
 
 class TestSplitNodesDelimiter(unittest.TestCase):
@@ -569,6 +569,44 @@ class TestTextToTextNodes(unittest.TestCase):
             TextNode("code", TextType.CODE),
         ]
         self.assertEqual(nodes, expected)
+
+
+class TestBlockToBlockType(unittest.TestCase):
+    
+    def test_heading_blocks(self):
+        """Test various heading levels"""
+        self.assertEqual(block_to_block_type("# Heading 1"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("## Heading 2"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("### Heading 3"), BlockType.HEADING)
+        self.assertEqual(block_to_block_type("###### Heading 6"), BlockType.HEADING)
+    
+    def test_code_blocks(self):
+        """Test code block detection"""
+        self.assertEqual(block_to_block_type("```\nprint('hello')\n```"), BlockType.CODE)
+        self.assertEqual(block_to_block_type("```python\ncode\n```"), BlockType.CODE)
+    
+    def test_quote_blocks(self):
+        """Test quote block detection"""
+        self.assertEqual(block_to_block_type(">This is a quote"), BlockType.QUOTE)
+        multi_quote = ">Line 1\n>Line 2\n>Line 3"
+        self.assertEqual(block_to_block_type(multi_quote), BlockType.QUOTE)
+    
+    def test_unordered_list_blocks(self):
+        """Test unordered list detection"""
+        self.assertEqual(block_to_block_type("- List item"), BlockType.UNORDERED_LIST)
+        multi_list = "- Item 1\n- Item 2\n- Item 3"
+        self.assertEqual(block_to_block_type(multi_list), BlockType.UNORDERED_LIST)
+    
+    def test_ordered_list_blocks(self):
+        """Test ordered list detection"""
+        self.assertEqual(block_to_block_type("1. First item"), BlockType.ORDERED_LIST)
+        ordered_list = "1. First\n2. Second\n3. Third"
+        self.assertEqual(block_to_block_type(ordered_list), BlockType.ORDERED_LIST)
+    
+    def test_paragraph_blocks(self):
+        """Test paragraph detection"""
+        self.assertEqual(block_to_block_type("Regular paragraph"), BlockType.PARAGRAPH)
+        self.assertEqual(block_to_block_type("Multi line\nparagraph text"), BlockType.PARAGRAPH)
 
 
 if __name__ == "__main__":

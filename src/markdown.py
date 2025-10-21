@@ -1,5 +1,15 @@
 import re
+from enum import Enum
 from textnode import TextNode, TextType
+
+
+class BlockType(Enum):
+    PARAGRAPH = "paragraph"
+    HEADING = "heading"
+    CODE = "code"
+    QUOTE = "quote"
+    UNORDERED_LIST = "unordered_list"
+    ORDERED_LIST = "ordered_list"
 
 
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
@@ -196,3 +206,42 @@ def markdown_to_blocks(markdown):
             cleaned_blocks.append(stripped_block)
     
     return cleaned_blocks
+
+
+def block_to_block_type(block):
+    """
+    Determine the type of a markdown block.
+    
+    Returns the BlockType enum value for the given block.
+    Assumes leading and trailing whitespace has already been stripped.
+    """
+    # Check for heading (1-6 # characters followed by space)
+    if re.match(r'^#{1,6} ', block):
+        return BlockType.HEADING
+    
+    # Check for code block (starts and ends with 3 backticks)
+    if block.startswith('```') and block.endswith('```') and len(block) >= 6:
+        return BlockType.CODE
+    
+    # Check for quote block (every line starts with >)
+    lines = block.split('\n')
+    if all(line.startswith('>') for line in lines):
+        return BlockType.QUOTE
+    
+    # Check for unordered list (every line starts with - followed by space)
+    if all(line.startswith('- ') for line in lines):
+        return BlockType.UNORDERED_LIST
+    
+    # Check for ordered list (lines start with number. followed by space, incrementing from 1)
+    is_ordered_list = True
+    for i, line in enumerate(lines):
+        expected_number = i + 1
+        if not re.match(rf'^{expected_number}\. ', line):
+            is_ordered_list = False
+            break
+    
+    if is_ordered_list and len(lines) > 0:
+        return BlockType.ORDERED_LIST
+    
+    # Default to paragraph if no other patterns match
+    return BlockType.PARAGRAPH
