@@ -1,9 +1,42 @@
+"""
+Markdown parsing and HTML conversion module.
+
+This module provides comprehensive functionality for parsing markdown text
+and converting it to HTML. It handles all standard markdown elements including
+headings, paragraphs, code blocks, quotes, lists, links, images, and inline
+formatting (bold, italic, code).
+
+The conversion process works in two main phases:
+1. Parse markdown text into TextNode objects representing different text types
+2. Convert TextNode objects to HTMLNode objects for final HTML rendering
+
+Key Features:
+- Block-level markdown parsing (headings, paragraphs, lists, quotes, code blocks)
+- Inline markdown parsing (bold, italic, code, links, images)
+- Nested list support with proper HTML structure
+- Robust error handling for malformed markdown
+- Integration with TextNode and HTMLNode systems
+"""
+
 import re
 from enum import Enum
 from textnode import TextNode, TextType
 
 
 class BlockType(Enum):
+    """Enumeration of markdown block types for classification.
+    
+    Used to identify and handle different types of markdown blocks
+    during the parsing and conversion process.
+    
+    Attributes:
+        PARAGRAPH: Regular text paragraphs
+        HEADING: Header text (# ## ### etc.)
+        CODE: Fenced code blocks (```)
+        QUOTE: Block quotes (> text)
+        UNORDERED_LIST: Bullet point lists (* - +)
+        ORDERED_LIST: Numbered lists (1. 2. 3.)
+    """
     PARAGRAPH = "paragraph"
     HEADING = "heading"
     CODE = "code"
@@ -13,6 +46,30 @@ class BlockType(Enum):
 
 
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
+    """Split text nodes on delimiter to create formatted text nodes.
+    
+    Takes a list of TextNode objects and splits TEXT type nodes on a given
+    delimiter to create new nodes with specific formatting (bold, italic, code).
+    Non-TEXT nodes are passed through unchanged.
+    
+    Args:
+        old_nodes (list): List of TextNode objects to process
+        delimiter (str): Markdown delimiter to split on (e.g., '*', '**', '`')
+        text_type (TextType): Type to assign to delimited text sections
+        
+    Returns:
+        list: New list of TextNode objects with delimited sections converted
+        
+    Raises:
+        ValueError: If delimiter appears an even number of times (unmatched)
+        
+    Example:
+        >>> nodes = [TextNode("Hello *world* test", TextType.TEXT)]
+        >>> split_nodes_delimiter(nodes, "*", TextType.ITALIC)
+        [TextNode("Hello ", TextType.TEXT), 
+         TextNode("world", TextType.ITALIC),
+         TextNode(" test", TextType.TEXT)]
+    """
     new_nodes = []
     
     for old_node in old_nodes:
@@ -44,9 +101,20 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
 
 
 def extract_markdown_images(text):
-    """
-    Extract markdown images from text.
-    Returns a list of tuples: (alt_text, url)
+    """Extract markdown images from text using regex pattern matching.
+    
+    Finds all markdown image syntax ![alt text](url) in the given text
+    and extracts the alt text and URL components.
+    
+    Args:
+        text (str): Text containing markdown image syntax
+        
+    Returns:
+        list: List of tuples (alt_text, url) for each image found
+        
+    Example:
+        >>> extract_markdown_images("This is ![image1](url1.jpg) and ![image2](url2.png)")
+        [('image1', 'url1.jpg'), ('image2', 'url2.png')]
     """
     pattern = r"!\[([^\[\]]*)\]\(([^\(\)]*)\)"
     matches = re.findall(pattern, text)
@@ -54,9 +122,20 @@ def extract_markdown_images(text):
 
 
 def extract_markdown_links(text):
-    """
-    Extract markdown links from text (excluding images).
-    Returns a list of tuples: (anchor_text, url)
+    """Extract markdown links from text, excluding image links.
+    
+    Finds all markdown link syntax [text](url) while excluding image links
+    that start with !. Uses negative lookbehind to avoid matching images.
+    
+    Args:
+        text (str): Text containing markdown link syntax
+        
+    Returns:
+        list: List of tuples (anchor_text, url) for each link found
+        
+    Example:
+        >>> extract_markdown_links("Visit [Google](https://google.com) or [GitHub](https://github.com)")
+        [('Google', 'https://google.com'), ('GitHub', 'https://github.com')]
     """
     pattern = r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)"
     matches = re.findall(pattern, text)
@@ -162,15 +241,32 @@ def split_nodes_link(old_nodes):
 
 
 def text_to_textnodes(text):
-    """
-    Convert raw markdown text to a list of TextNode objects.
+    """Convert raw markdown text to a list of TextNode objects.
     
-    This function applies all splitting operations in the correct order:
+    This is a key function that processes markdown text and applies all
+    inline formatting in the correct order to create properly typed TextNode
+    objects for later HTML conversion.
+    
+    Processing order (important for nested formatting):
     1. Bold (**text**)
-    2. Italic (_text_)  
+    2. Italic (*text* and _text_)  
     3. Code (`text`)
     4. Images (![alt](url))
     5. Links ([text](url))
+    
+    Args:
+        text (str): Raw markdown text with inline formatting
+        
+    Returns:
+        list: List of TextNode objects with appropriate text types
+        
+    Example:
+        >>> text_to_textnodes("Hello **bold** and *italic* text")
+        [TextNode("Hello ", TextType.TEXT),
+         TextNode("bold", TextType.BOLD),
+         TextNode(" and ", TextType.TEXT),
+         TextNode("italic", TextType.ITALIC),
+         TextNode(" text", TextType.TEXT)]
     """
     # Start with a single TEXT node containing all the text
     nodes = [TextNode(text, TextType.TEXT)]
@@ -269,10 +365,23 @@ def text_to_children(text):
 
 
 def markdown_to_html_node(markdown):
-    """
-    Convert a full markdown document into a single parent HTMLNode.
+    """Convert a complete markdown document into a single parent HTMLNode.
     
-    Returns a div HTMLNode containing child nodes for each block.
+    This is the main entry point for markdown-to-HTML conversion. It processes
+    an entire markdown document by splitting it into blocks, determining each
+    block's type, and converting each block to appropriate HTML nodes.
+    
+    Args:
+        markdown (str): Complete markdown document text
+        
+    Returns:
+        ParentNode: A div HTMLNode containing all converted blocks as children
+        
+    Example:
+        >>> markdown = "# Hello\\n\\nThis is **bold** text."
+        >>> html_node = markdown_to_html_node(markdown)
+        >>> html_node.to_html()
+        '<div><h1>Hello</h1><p>This is <b>bold</b> text.</p></div>'
     """
     from htmlnode import ParentNode
     
