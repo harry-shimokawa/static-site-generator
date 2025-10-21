@@ -338,8 +338,8 @@ def heading_to_html_node(block):
 
 def code_block_to_html_node(block):
     """Convert a code block to HTML pre/code nodes."""
-    from htmlnode import ParentNode, LeafNode
-    from textnode import TextNode, text_node_to_html_node
+    from htmlnode import ParentNode
+    from textnode import text_node_to_html_node
     
     # Remove the opening and closing backticks
     code_content = block[3:-3]  # Remove ``` from start and end
