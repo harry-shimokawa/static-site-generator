@@ -119,6 +119,41 @@ def generate_page(from_path, template_path, dest_path):
         f.write(final_html)
 
 
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+    """
+    Recursively generate HTML pages for all markdown files in a directory tree.
+    
+    Crawls the content directory and generates HTML pages for every markdown file found,
+    maintaining the same directory structure in the destination.
+    
+    Args:
+        dir_path_content (str): Path to the content directory to crawl
+        template_path (str): Path to the HTML template file
+        dest_dir_path (str): Path to the destination directory for generated HTML
+    """
+    # Ensure the destination directory exists
+    if not os.path.exists(dest_dir_path):
+        os.makedirs(dest_dir_path)
+    
+    # Get all items in the content directory
+    for item in os.listdir(dir_path_content):
+        item_path = os.path.join(dir_path_content, item)
+        
+        if os.path.isfile(item_path):
+            # Check if it's a markdown file
+            if item.endswith('.md'):
+                # Generate the destination HTML path
+                html_filename = item.replace('.md', '.html')
+                dest_file_path = os.path.join(dest_dir_path, html_filename)
+                
+                # Generate the HTML page
+                generate_page(item_path, template_path, dest_file_path)
+        else:
+            # It's a directory, recurse into it
+            nested_dest_dir = os.path.join(dest_dir_path, item)
+            generate_pages_recursive(item_path, template_path, nested_dest_dir)
+
+
 def main():
     # Copy static files to public directory
     static_dir = "static"
@@ -128,12 +163,12 @@ def main():
     copy_static(static_dir, public_dir)
     print("Static file copy completed!")
     
-    # Generate the main page
+    # Generate all pages recursively
     print("\nGenerating pages...")
-    generate_page(
-        "content/index.md", 
+    generate_pages_recursive(
+        "content", 
         "template.html", 
-        "public/index.html"
+        "public"
     )
     print("Page generation completed!")
     
