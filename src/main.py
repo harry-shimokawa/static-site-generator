@@ -1,5 +1,6 @@
 import os
 import shutil
+import sys
 from textnode import TextNode, TextType
 from markdown import markdown_to_html_node
 
@@ -79,7 +80,7 @@ def extract_title(markdown):
     raise ValueError("No h1 heading found in markdown")
 
 
-def generate_page(from_path, template_path, dest_path):
+def generate_page(from_path, template_path, dest_path, basepath="/"):
     """
     Generate an HTML page from markdown content and template.
     
@@ -87,6 +88,7 @@ def generate_page(from_path, template_path, dest_path):
         from_path (str): Path to the markdown file
         template_path (str): Path to the HTML template
         dest_path (str): Path where the generated HTML should be saved
+        basepath (str): Base path for the site (e.g., "/" or "/repo-name/")
     """
     print(f"Generating page from {from_path} to {dest_path} using {template_path}")
     
@@ -109,6 +111,10 @@ def generate_page(from_path, template_path, dest_path):
     final_html = template_content.replace("{{ Title }}", title)
     final_html = final_html.replace("{{ Content }}", html_content)
     
+    # Fix paths for basepath
+    final_html = final_html.replace('href="/', f'href="{basepath}')
+    final_html = final_html.replace('src="/', f'src="{basepath}')
+    
     # Ensure destination directory exists
     dest_dir = os.path.dirname(dest_path)
     if dest_dir and not os.path.exists(dest_dir):
@@ -119,7 +125,7 @@ def generate_page(from_path, template_path, dest_path):
         f.write(final_html)
 
 
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, basepath="/"):
     """
     Recursively generate HTML pages for all markdown files in a directory tree.
     
@@ -130,6 +136,7 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
         dir_path_content (str): Path to the content directory to crawl
         template_path (str): Path to the HTML template file
         dest_dir_path (str): Path to the destination directory for generated HTML
+        basepath (str): Base path for the site (e.g., "/" or "/repo-name/")
     """
     # Ensure the destination directory exists
     if not os.path.exists(dest_dir_path):
@@ -147,28 +154,34 @@ def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
                 dest_file_path = os.path.join(dest_dir_path, html_filename)
                 
                 # Generate the HTML page
-                generate_page(item_path, template_path, dest_file_path)
+                generate_page(item_path, template_path, dest_file_path, basepath)
         else:
             # It's a directory, recurse into it
             nested_dest_dir = os.path.join(dest_dir_path, item)
-            generate_pages_recursive(item_path, template_path, nested_dest_dir)
+            generate_pages_recursive(item_path, template_path, nested_dest_dir, basepath)
 
 
 def main():
-    # Copy static files to public directory
+    # Get basepath from command line argument, default to "/"
+    basepath = "/"
+    if len(sys.argv) > 1:
+        basepath = sys.argv[1]
+    
+    # Copy static files to docs directory
     static_dir = "static"
-    public_dir = "public"
+    docs_dir = "docs"
     
     print("Starting static file copy process...")
-    copy_static(static_dir, public_dir)
+    copy_static(static_dir, docs_dir)
     print("Static file copy completed!")
     
     # Generate all pages recursively
-    print("\nGenerating pages...")
+    print(f"\nGenerating pages with basepath: {basepath}")
     generate_pages_recursive(
         "content", 
         "template.html", 
-        "public"
+        "docs",
+        basepath
     )
     print("Page generation completed!")
     
